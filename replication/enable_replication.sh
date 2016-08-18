@@ -30,8 +30,6 @@ Mandatory arguments:
 
 -sp, --src-ambari-password      Admin password for Ambari of source HBase cluster.
 
--du, --dst-ambari-user          Admin username for Ambari of destination HBase cluster.
-
 -dp, --dst-ambari-password      Admin password for Ambari of destination HBase cluster.
 
 Optinal arguments:
@@ -40,9 +38,16 @@ Optinal arguments:
 -su, --src-ambari-user          Admin username for Ambari of source HBase cluster.
                                 Default = admin.
 
+-du, --dst-ambari-user          Admin username for Ambari of destination HBase cluster.
+                                Default = admin.
+
 -t, --table-list                ';' separated list of tables to be replicated. 
                                 For example: --table-list="table1;table2;table3"
                                 By default - all hbase tables are replicated.
+
+-m, --machine                   This option should be used when running the $0 script as 
+                                Script Action from HDInsight portal or Azure Powershell.
+								the value of -m should be either hn0 or hn1.
 
 -h, --help                      Display's usage information.
 
@@ -70,6 +75,7 @@ DST_AMBARI_PASSWORD=
 TABLE_LIST=
 AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 PORT=8080
+MACHINE=
 
 #------------------------------------------------------------------
 # PARSE AND PROCESS COMMAND LINE ARGUMENTS
@@ -235,6 +241,26 @@ process_arguments()
 				print_usage
 				exit 1
 				;;
+			-m|--machine)  
+				if [ -n "$2" ]; then
+					MACHINE=$2
+					shift
+				else
+					printf '[ERROR] -t or --table-list requires non-empty list of tables to be replicated.' >&2
+					print_usage
+					exit 1
+				fi
+				;;
+
+			--machine=?*)
+				MACHINE=${1#*=} 
+				;;
+			--machine=)
+			# Handle the case where no argument is specified after '=' sign.
+				printf '[ERROR] -m or --machine requires non-empty machine name.' >&2
+				print_usage
+				exit 1
+				;;
 			--)
 				shift
 				break
@@ -270,6 +296,20 @@ validate_arguments()
 		printf '[ERROR] Mandatory arguments missing.\n' >&2
 		print_usage
 		exit 1
+	fi
+
+	if [[ ! -z $MACHINE ]] && [[ $MACHINE != hn* ]]; then
+		printf '[ERROR] -m accepts only hn0 or hn1 as arguments.\n' >&2
+		exit 1
+	fi
+
+	# MACHINE VALIDATION.
+	#
+	THIS_MACHINE=`hostname`
+
+	if [[ $THIS_MACHINE != $MACHINE* ]]; then
+		printf '[ERROR] Not the correct machine to execute the script. Exiting!\n' >&2
+		exit 0
 	fi
 }
 
