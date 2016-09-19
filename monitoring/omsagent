@@ -1,0 +1,27 @@
+# Begin sudo configuration for omsagent
+Defaults:omsagent !requiretty
+
+#update and restart syslog
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSRsyslog.post.sh
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSSysklog.post.sh
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSSyslog-ng.post.sh
+
+#Service status
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSServiceStat.sh
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSServiceStatAll.sh
+
+# AvailableUpdates
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSYumUpdates.sh
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSZypperUpdates.sh
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsconfig/Scripts/OMSAptUpdates.sh
+
+#restart omsagent daemon
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsagent/bin/service_control
+
+#Inspect Docker containers (filter_docker_log.rb)
+omsagent ALL=(ALL) NOPASSWD: /usr/bin/docker inspect *
+
+#run tailfilereader.rb
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsagent/ruby/bin/ruby /opt/microsoft/omsagent/bin/tailfilereader.rb *
+omsagent ALL=(ALL) NOPASSWD: /opt/microsoft/omsagent/ruby/bin/ruby /opt/microsoft/omsagent/bin/hdinsightmanifestreader.rb
+# End sudo configuration for omsagent
