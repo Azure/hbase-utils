@@ -18,7 +18,7 @@ cat << ...
 	
 Usage: 
 	$0 <directory> [blob_operations]
-		
+
 	<directory> - The command takes full path to the directory containing hourly logs. 
 				For example: "/d/storage_logs/2016/09/24"
 				This is mandatory argument.
@@ -76,44 +76,44 @@ process_arguments ()
 
 print_analysis ()
 {
-		OPERATION=$1 
+	OPERATION=$1 
 
-		echo "----------------------------"
-		echo "$OPERATION Analysis:"
-		echo "----------------------------"
+	echo "----------------------------"
+	echo "$OPERATION Analysis:"
+	echo "----------------------------"
 
-		echo "Hour TotalWrites MinLatency MaxLatency MedianLatency AvgLatency 95%tileLatency 99%tileLatency MinBytes MaxBytes MedianBytes AvgBytes 95%tileBytes 99%tileBytes"
+	echo "Hour TotalWrites MinLatency MaxLatency MedianLatency AvgLatency 95%tileLatency 99%tileLatency MinBytes MaxBytes MedianBytes AvgBytes 95%tileBytes 99%tileBytes"
 
-		for dir in `ls -1`
-		do
-				let sum=0
-				for file in `ls -1 $dir/` 
-				do 
-					if [[ $OPERATION != ServerTimeoutError ]] 
-					then
-						lines=`cat $dir/$file | grep -v "ServerTimeoutError" | grep  ";$OPERATION;" | wc -l`
-						let sum=$sum+$lines
-					else
-						lines=`cat $dir/$file | grep  ";$OPERATION;" | wc -l`
-						let sum=$sum+$lines
-					fi
-				done
-				echo -n "$dir $sum "
+	for dir in `ls -1`
+	do
+		let sum=0
+	for file in `ls -1 $dir/` 
+	do 
+		if [[ $OPERATION != ServerTimeoutError ]] 
+		then
+			lines=`cat $dir/$file | grep -v "ServerTimeoutError" | grep  ";$OPERATION;" | wc -l`
+			let sum=$sum+$lines
+		else
+			lines=`cat $dir/$file | grep  ";$OPERATION;" | wc -l`
+			let sum=$sum+$lines
+		fi
+	done
+		echo -n "$dir $sum "
 
-				if [[ $OPERATION != ServerTimeoutError ]] 
-				then
-						# ----------------------------------------------------------------------------------
-						# Some URL's have ';', so we need to mask any string inside '"' that might contain ;
-						# Also, we need to account successful v/s unsuccessful IOPS separately.
-						# ----------------------------------------------------------------------------------
-						#
-						grep ";$OPERATION;" $dir/*.log |  grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
-						grep ";$OPERATION;" $dir/*.log | grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
-				else
-						grep ";$OPERATION;" $dir/*.log |  sed -e 's/;"[^"]*";/;"";/g' |  cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
-						grep ";$OPERATION;" $dir/*.log |   sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
-				fi
-		done
+		if [[ $OPERATION != ServerTimeoutError ]] 
+		then
+			# ----------------------------------------------------------------------------------
+			# Some URL's have ';', so we need to mask any string inside '"' that might contain ;
+			# Also, we need to account successful v/s unsuccessful IOPS separately.
+			# ----------------------------------------------------------------------------------
+			#
+			grep ";$OPERATION;" $dir/*.log |  grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+			grep ";$OPERATION;" $dir/*.log | grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+		else
+			grep ";$OPERATION;" $dir/*.log |  sed -e 's/;"[^"]*";/;"";/g' |  cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+			grep ";$OPERATION;" $dir/*.log |   sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+		fi
+	done
 }
 
 #-----------------
