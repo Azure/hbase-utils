@@ -1,8 +1,8 @@
 #!/bin/bash 
 
 #-----------------------------------------------------------------------------------#
-# This script analyzes the Azure storage metrics and prints the Avg., 95 percentile 
-# and 99 percentile scores for BLOB I/O operations.									
+# THIS SCRIPT ANALYZES THE AZURE STORAGE METRICS AND PRINTS THE AVG., 95 PERCENTILE 
+# AND 99 PERCENTILE SCORES FOR BLOB I/O OPERATIONS.									
 #-----------------------------------------------------------------------------------#
 
 
@@ -11,6 +11,11 @@ INPUT_DIR=
 OPERATIONS_LIST=
 
 OPERATIONS_ARRAY=()
+
+# If specific operations aren't specified from command line, following operations are 
+# considered for analysis.
+#
+DEFAULT_OPERATIONS="PutPage,GetBlob,GetBlobProperties,ListBlobs,PutBlock,PutBlob,PutBlockList,GetBlockList,DeleteBlob,ReleaseBlobLease,AcquireBlobLease,SetBlobProperties,GetContainerProperties,CopyBlobSource,CopyBlobDestination,CopyBlob,RenewBlobLease,SetBlobMetadata,GetPageRegions"
 
 print_usage()
 {
@@ -67,11 +72,9 @@ process_arguments ()
 		IFS=$TEMP_IFS
 	else
 		TEMP_IFS=$IFS
-		IFS=',' read -ra OPERATIONS_ARRAY <<< "PutPage,PutBlock,GetPage,GetBlock"
+		IFS=',' read -ra OPERATIONS_ARRAY <<< "$DEFAULT_OPERATIONS"
 		IFS=$TEMP_IFS
 	fi
-
-
 }
 
 print_analysis ()
@@ -100,18 +103,23 @@ print_analysis ()
 	done
 		echo -n "$dir $sum "
 
-		if [[ $OPERATION != ServerTimeoutError ]] 
+		if [[  $sum -gt 0 ]]
 		then
-			# ----------------------------------------------------------------------------------
-			# Some URL's have ';', so we need to mask any string inside '"' that might contain ;
-			# Also, we need to account successful v/s unsuccessful IOPS separately.
-			# ----------------------------------------------------------------------------------
-			#
-			grep ";$OPERATION;" $dir/*.log |  grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
-			grep ";$OPERATION;" $dir/*.log | grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+			if [[ $OPERATION != ServerTimeoutError ]] 
+			then
+				# ----------------------------------------------------------------------------------
+				# Some URL's have ';', so we need to mask any string inside '"' that might contain ;
+				# Also, we need to account successful v/s unsuccessful IOPS separately.
+				# ----------------------------------------------------------------------------------
+				#
+				grep ";$OPERATION;" $dir/*.log |  grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+				grep ";$OPERATION;" $dir/*.log | grep -v "ServerTimeoutError" |  sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+			else
+				grep ";$OPERATION;" $dir/*.log |  sed -e 's/;"[^"]*";/;"";/g' |  cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+				grep ";$OPERATION;" $dir/*.log |   sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+			fi
 		else
-			grep ";$OPERATION;" $dir/*.log |  sed -e 's/;"[^"]*";/;"";/g' |  cut -f 6 -d ';' | sort -n | awk -v ORS=" " '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
-			grep ";$OPERATION;" $dir/*.log |   sed -e 's/;"[^"]*";/;"";/g' | cut -f 19 -d ';' | sort -n | awk '{a[i++]=$0;s+=$0}END{print a[0],a[i-1],(a[int(i/2)]+a[int((i-1)/2)])/2,int(s/i),a[int(i-((i*5)/100))],a[int(i-(i/100))]}';
+			echo ""
 		fi
 	done
 }
