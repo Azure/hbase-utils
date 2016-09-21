@@ -67,7 +67,7 @@ add_table_for_flush ()
 	TABLE_NAME=$1
 	echo "[INFO] Adding table '$TABLE_NAME' to flush list..."
 	cat << ... >> $HBASE_SCRIPT
-		flush '$LINE'
+		flush '$TABLE_NAME'
 ...
 }
 
