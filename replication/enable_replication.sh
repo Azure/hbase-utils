@@ -50,6 +50,12 @@ Optinal arguments:
                                 Script Action from HDInsight portal or Azure Powershell.
 								the value of -m should be either hn0 or hn1.
 
+-ip								This argument acts as a switch to utilize the static IP's of zookeeper
+								nodes from replica cluster instead of FQDN names. The static IP's 
+								needs to be pre-configured before enabling replication. 
+								This argument is mandatory when enabling replication across two 
+								different VNET's.
+
 -h, --help                      Display's usage information.
 
 Sample Commands:
@@ -77,6 +83,7 @@ TABLE_LIST=
 AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 PORT=8080
 MACHINE=
+USE_IP=false
 
 #------------------------------------------------------------------
 # PARSE AND PROCESS COMMAND LINE ARGUMENTS
@@ -262,6 +269,10 @@ process_arguments()
 				print_usage
 				exit 1
 				;;
+
+			-ip)
+				USE_IP=true
+				;;
 			--)
 				shift
 				break
@@ -370,11 +381,37 @@ set_replication_peer ()
 	local TEMPPORT=`cat /tmp/hbase.json | grep "hbase.zookeeper.property.clientPort" | awk '{ print $3 }'`
 	local TEMPPARENT=`cat /tmp/hbase.json | grep "zookeeper.znode.parent" | awk '{ print $3 }'`
 
+	# NORMALIZE PARAMETERS
+	#
 	local ZKQUORUM=`echo ${TEMPQUORUM} | sed -e 's/"//g' | sed -e 's/,$//g'`
 	local ZKPORT=`echo ${TEMPPORT} | sed -e 's/"//g' | sed -e 's/,$//g'`
 	local ZKPARENT=`echo ${TEMPPARENT} | sed -e 's/"//g' | sed -e 's/,$//g'`
 
-	REPLICATION_PEER=$ZKQUORUM:$ZKPORT:$ZKPARENT
+	if [[ $USE_IP == true ]]
+	then
+
+		TEMP_IFS=$IFS
+		ZKQUORUMIP=""
+
+		IFS=',' read -ra ZK_MACHINE_ARRAY <<< "$ZKQUORUM"
+		for ZK_MACHINE in "${ZK_MACHINE_ARRAY[@]}"
+		do
+			curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.azurehdinsight.net/api/v1/clusters/$DST_CLUSTER/hosts/$ZK_MACHINE" -o /tmp/hbase.json 2> /dev/null
+			ZKIP=`grep \"ip\" /tmp/hbase.json | awk '{ print $3 }' | sed -e 's/"//g' | sed -e 's/,$//g'`
+
+			if [[ ! -z $ZKQUORUMIP ]]
+			then
+				ZKQUORUMIP="$ZKIP,$ZKQUORUMIP"
+			else
+				ZKQUORUMIP=$ZKIP
+			fi 
+		done
+		IFS=$TEMP_IFS
+
+		REPLICATION_PEER=$ZKQUORUMIP:$ZKPORT:$ZKPARENT
+	else
+		REPLICATION_PEER=$ZKQUORUM:$ZKPORT:$ZKPARENT
+	fi
 
 	echo "[INFO] Identified sink cluster peer address as: $REPLICATION_PEER."
 

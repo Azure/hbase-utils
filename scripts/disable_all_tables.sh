@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #-------------------------------------------------------------------------------#
-# SCRIPT TO FLUSH ALL HBASE TABLES.
+# SCRIPT TO DISABLE ALL HBASE TABLES.
 #-------------------------------------------------------------------------------#
 
 LIST_OF_TABLES=/tmp/tables.txt
@@ -62,12 +62,13 @@ hbase shell << ... > $LIST_OF_TABLES 2> /dev/null
 ...
 }
 
-add_table_for_flush ()
+add_table_for_disable ()
 {
 	TABLE_NAME=$1
 	echo "[INFO] Adding table '$TABLE_NAME' to flush list..."
 	cat << ... >> $HBASE_SCRIPT
 		flush '$TABLE_NAME'
+		disable '$TABLE_NAME'
 ...
 }
 
@@ -102,7 +103,7 @@ do
 		break
 	elif [[ $START == true ]]
 	then
-		add_table_for_flush $LINE
+		add_table_for_disable $LINE
 	fi
 
 done < $LIST_OF_TABLES

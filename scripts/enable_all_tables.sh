@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #-------------------------------------------------------------------------------#
-# SCRIPT TO FLUSH ALL HBASE TABLES.
+# SCRIPT TO ENABLE ALL HBASE TABLES.
 #-------------------------------------------------------------------------------#
 
 LIST_OF_TABLES=/tmp/tables.txt
@@ -62,12 +62,12 @@ hbase shell << ... > $LIST_OF_TABLES 2> /dev/null
 ...
 }
 
-add_table_for_flush ()
+add_table_for_enable ()
 {
 	TABLE_NAME=$1
-	echo "[INFO] Adding table '$TABLE_NAME' to flush list..."
+	echo "[INFO] Adding table '$TABLE_NAME' to enable list..."
 	cat << ... >> $HBASE_SCRIPT
-		flush '$TABLE_NAME'
+		enable '$TABLE_NAME'
 ...
 }
 
@@ -102,7 +102,7 @@ do
 		break
 	elif [[ $START == true ]]
 	then
-		add_table_for_flush $LINE
+		add_table_for_enable $LINE
 	fi
 
 done < $LIST_OF_TABLES
