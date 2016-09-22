@@ -17,43 +17,58 @@ $0 -s <src_cluster_dns> -sp <src_ambari_password> <-all|-t "table1;table2;..."> 
 Mandatory arguments:
 --------------------
 
--s, --src-cluster               DNS name of the source HBase cluster.
-                                For example: 
-                                -s hbsrccluster
-                                --src-cluster=hbsrccluster
+-s, --src-cluster               
 
--sp, --src-ambari-password      Admin password for Ambari of source HBase cluster.
+                        DNS name of the source HBase cluster.
+                        For example: 
+                        -s hbsrccluster
+                        --src-cluster=hbsrccluster
 
--all | -t, --table-list			If '-all' switch is specified, the replication is 
-								disabled on all the tables.
+-sp, --src-ambari-password      
 
-								-t (or --table-list) option takes a list of tables 
-								where replication needs to be disabled. The tables 
-								must be separated by ';'. 
-								For Example: --table-list "table1;table2;table3"
+                        Admin password for Ambari of source HBase cluster.
+
+-all | -t, --table-list			
+
+                        If '-all' switch is specified, the replication is 
+                        disabled on all the tables.
+
+                        -t (or --table-list) option takes a list of tables 
+                        where replication needs to be disabled. The tables 
+                        must be separated by ';'. 
+                        For Example: --table-list "table1;table2;table3"
 								
 Optinal arguments:
 ------------------
 
--su, --src-ambari-user          Admin username for Ambari of source HBase cluster.
-                                Default = admin.
+-su, --src-ambari-user          
 
--t, --table-list                ';' separated list of tables to be replicated. 
-                                For example: --table-list="table1;table2;table3"
-                                By default - all hbase tables are replicated.
+                        Admin username for Ambari of source HBase cluster.
+                        Default = admin.
 
--m, --machine                   This option should be used when running the $0 script as 
-                                Script Action from HDInsight portal or Azure Powershell.
-								the value of -m should be either hn0 or hn1.
+-t, --table-list                
 
--h, --help                      Display's usage information.
+                        ';' separated list of tables to be replicated. 
+                        For example: --table-list="table1;table2;table3"
+                        By default - all hbase tables are replicated.
+
+-m, --machine            
+
+                        This option should be used when running the $0 script as 
+                        Script Action from HDInsight portal or Azure Powershell.
+                        the value of -m should be either hn0 or hn1.
+
+-h, --help                   
+
+                        Display's usage information.
 
 Sample Commands:
 ------------------
 
 $0 -s pri-hbcluster -sp Mypassword\!789 -all
  
-$0 --src-cluster=pri-hbcluster --dst-cluster=sec-hbcluster --src-ambari-user=admin --src-ambari-password=Hello\!789 --table-list="table1;table2;table3"
+$0 --src-cluster=pri-hbcluster --dst-cluster=sec-hbcluster --src-ambari-user=admin \
+    --src-ambari-password=Hello\!789 --table-list="table1;table2;table3"
 
 ...
 exit 132
