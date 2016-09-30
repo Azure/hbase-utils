@@ -1,1 +1,1 @@
-sudo sh /tmp/omsagent.x64.sh –purge
+sudo sh /tmp/omsagent.x64.sh --purge
