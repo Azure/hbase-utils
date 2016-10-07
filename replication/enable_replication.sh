@@ -19,51 +19,78 @@ $0 -s <src_cluster_dns> -sp <src_ambari_password> -d <dst_cluster_dns> -dp <dst_
 Mandatory arguments:
 --------------------
 
--s, --src-cluster               DNS name of the source HBase cluster.
+-s, --src-cluster              
+                                DNS name of the source HBase cluster.
                                 For example: 
                                 -s hbsrccluster
                                 --src-cluster=hbsrccluster
 
--d, --dst-cluster               DNS name of the destination (replica) HBase cluster.
+-d, --dst-cluster               
+                                DNS name of the destination (replica) HBase cluster.
                                 For example: 
                                 -s dsthbcluster
                                 --src-cluster=dsthbcluster
 
--sp, --src-ambari-password      Admin password for Ambari of source HBase cluster.
+-sp, --src-ambari-password      
+                                Admin password for Ambari of source HBase cluster.
 
--dp, --dst-ambari-password      Admin password for Ambari of destination HBase cluster.
+-dp, --dst-ambari-password      
+                                Admin password for Ambari of destination HBase cluster.
 
 Optinal arguments:
 ------------------
 
--su, --src-ambari-user          Admin username for Ambari of source HBase cluster.
+-su, --src-ambari-user          
+                                Admin username for Ambari of source HBase cluster.
                                 Default = admin.
 
--du, --dst-ambari-user          Admin username for Ambari of destination HBase cluster.
+-du, --dst-ambari-user          
+                                Admin username for Ambari of destination HBase cluster.
                                 Default = admin.
 
--t, --table-list                ';' separated list of tables to be replicated. 
-                                For example: --table-list="table1;table2;table3"
+-t, --table-list                
+                                ';' separated list of tables to be replicated. 
+                                
+								For example: --table-list="table1;table2;table3"
                                 By default - all hbase tables are replicated.
 
--m, --machine                   This option should be used when running the $0 script as 
+-m, --machine                   
+                                This option should be used when running the $0 script as 
                                 Script Action from HDInsight portal or Azure Powershell.
 								the value of -m should be either hn0 or hn1.
 
--ip								This argument acts as a switch to utilize the static IP's of zookeeper
+-ip								
+                                This argument acts as a switch to utilize the static IP's of zookeeper
 								nodes from replica cluster instead of FQDN names. The static IP's 
 								needs to be pre-configured before enabling replication. 
 								This argument is mandatory when enabling replication across two 
 								different VNET's.
 
--h, --help                      Display's usage information.
+-cp, -copydata
+                                This option is a switch which enables the migration of 
+ 							    existing data on the tables where replication gets enabled.
+
+-rpm, -replicate-phoenix-meta
+                                This switch enables the replication on Phoenix system (SYSTEM.*)
+								tables. 
+
+								NOTE: This option needs to be used with caution!
+								It is in general advised to recreate phoenix tables on replica
+								cluster before using this script. 
+
+-h, --help                      
+                                Display's usage information.
 
 Sample Commands:
 ------------------
 
-$0 -s pri-hbcluster -d sec-hbcluster -sp Mypassword\!789 -dp Mypassword1234#
+1) To enable replication on all tables without migrating existing data:
+
+   $0 -s pri-hbcluster -d sec-hbcluster -sp Mypassword\!789 -dp Mypassword1234#
  
-$0 --src-cluster=pri-hbcluster --dst-cluster=sec-hbcluster --src-ambari-user=admin --src-ambari-password=Hello\!789 --dst-ambari-user=admin --dst-ambari-password=Sample1234# --table-list="table1;table2;table3"
+2) To enable replication on tables specified (table1, table2 and table3) and also migrating the existing data, use following command:
+
+   $0 --src-cluster=pri-hbcluster --dst-cluster=sec-hbcluster --src-ambari-user=admin --src-ambari-password=Hello\!789 --dst-ambari-user=admin --dst-ambari-password=Sample1234# --table-list="table1;table2;table3" -cp
 
 ...
 exit 132
@@ -84,6 +111,8 @@ AMBARICONFIGS_SH=/var/lib/ambari-server/resources/scripts/configs.sh
 PORT=8080
 MACHINE=
 USE_IP=false
+MIGRATE_EXISTING_DATA=false
+REPLICATE_PHOENIX_SYSTEM_TABLES=false
 
 #------------------------------------------------------------------
 # PARSE AND PROCESS COMMAND LINE ARGUMENTS
@@ -273,6 +302,18 @@ process_arguments()
 			-ip)
 				USE_IP=true
 				;;
+			-cp)
+				MIGRATE_EXISTING_DATA=true
+				;;
+			-copydata)
+				MIGRATE_EXISTING_DATA=true
+				;;
+			-rpm)
+				REPLICATE_PHOENIX_SYSTEM_TABLES=true
+				;;
+			-replicate-phoenix-meta)
+				REPLICATE_PHOENIX_SYSTEM_TABLES=true
+				;;
 			--)
 				shift
 				break
@@ -460,8 +501,24 @@ set_replication_peer
 TABLES_ARRAY=()
 set_tables_to_replicate 
 
+# DECLARING A MAP OF TABLES AND THE TIMESTAMPS AT WHICH REPLICATION 
+# GOT ENABLED ON THEM.
+#
+declare -A TABLE_TS_MAP
+
+#------------------------------------------------------------------
+#  ENABLE REPLICATION ON ALL DESIRED TABLES
+#------------------------------------------------------------------
+
 for user_table in "${TABLES_ARRAY[@]}"
 do
+
+	if [[ $user_table == SYSTEM* ]] && [[ $REPLICATE_PHOENIX_SYSTEM_TABLES == false ]]
+	then
+		echo "[INFO] Ignoring the replication for phoenix system table '$user_table'."
+		continue;
+	fi
+
 	echo "[INFO] Attempting to enable replication for table '$user_table'."
 	echo "[INFO] Extracting schema for '$user_table' from HBase cluster '$SRC_CLUSTER'."
 	echo "[INFO] Applying schema of '$user_table' to HBase cluster '$DST_CLUSTER'."
@@ -473,6 +530,8 @@ do
 	describe '$user_table'
 	exit
 ...
+
+	CUR_TIMESTAMP=$(($(date +%s%N)/1000000))
 
 	# CHECK FOR ERRORS.
 	#
@@ -487,15 +546,35 @@ do
 		echo "[ERROR] Replication could not be enabled on table '$user_table' due to following error(s):"
 		grep "ERROR:" /tmp/hbase.out  | sed -e 's/^/[ERROR] /g'
 	else
-		echo "[INFO] Replication enabled successfully on table '$user_table'."
+		echo "[INFO] Replication enabled successfully on table '$user_table' at timestamp '$CUR_TIMESTAMP'."
 
-		CUR_TIMESTAMP=$(($(date +%s%N)/1000000))
-		echo "[INFO] Transferring pre-existing data of table '$user_table' upto END_TIMESTAMP=$CUR_TIMESTAMP."
+		# MIGRATE THE EXISTING DATA IF USER WANTS TO. 
+		#
+		if [[ $MIGRATE_EXISTING_DATA == true ]]
+		then
+			# SAVE THE TIMESTAMP IN TABLE_TS_MAP.
+			#
+			TABLE_TS_MAP[$user_table]=$CUR_TIMESTAMP
 
-		echo "[INFO] Running command: 'hbase org.apache.hadoop.hbase.mapreduce.CopyTable --peer.adr=$REPLICATION_PEER --endtime=$CUR_TIMESTAMP $user_table'"
-		hbase org.apache.hadoop.hbase.mapreduce.CopyTable --peer.adr=$REPLICATION_PEER --endtime=$CUR_TIMESTAMP $user_table > /dev/null 2>&1
+		fi
 	fi
-
 done
 
+
+#------------------------------------------------------------------
+# PERFORM MIGRATION OF EXISTING DATA IF REQUESTED BY USER
+#------------------------------------------------------------------
+
+if [[ $MIGRATE_EXISTING_DATA == true ]]
+then
+	for K in "${!TABLE_TS_MAP[@]}"
+	do
+		CURRENT_TABLE=$K
+		END_TS=${TABLE_TS_MAP[$K]}
+		
+		echo "[INFO] Transferring pre-existing data of table '$CURRENT_TABLE' upto END_TIMESTAMP='$END_TS'"
+		echo "[INFO] Running command: 'hbase org.apache.hadoop.hbase.mapreduce.CopyTable --peer.adr=$REPLICATION_PEER --endtime=$END_TS $CURRENT_TABLE'"
+		hbase org.apache.hadoop.hbase.mapreduce.CopyTable --peer.adr=$REPLICATION_PEER --endtime=$END_TS $CURRENT_TABLE > /dev/null 2>&1
+	done
+fi
 
