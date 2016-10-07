@@ -51,32 +51,32 @@ Optinal arguments:
 -t, --table-list                
                                 ';' separated list of tables to be replicated. 
                                 
-								For example: --table-list="table1;table2;table3"
+                                For example: --table-list="table1;table2;table3"
                                 By default - all hbase tables are replicated.
 
 -m, --machine                   
                                 This option should be used when running the $0 script as 
                                 Script Action from HDInsight portal or Azure Powershell.
-								the value of -m should be either hn0 or hn1.
+                                the value of -m should be either hn0 or hn1.
 
 -ip								
                                 This argument acts as a switch to utilize the static IP's of zookeeper
-								nodes from replica cluster instead of FQDN names. The static IP's 
-								needs to be pre-configured before enabling replication. 
-								This argument is mandatory when enabling replication across two 
-								different VNET's.
+                                nodes from replica cluster instead of FQDN names. The static IP's 
+                                needs to be pre-configured before enabling replication. 
+                                This argument is mandatory when enabling replication across two 
+                                different VNET's.
 
 -cp, -copydata
                                 This option is a switch which enables the migration of 
- 							    existing data on the tables where replication gets enabled.
+                                existing data on the tables where replication gets enabled.
 
 -rpm, -replicate-phoenix-meta
                                 This switch enables the replication on Phoenix system (SYSTEM.*)
-								tables. 
+                                tables. 
 
-								NOTE: This option needs to be used with caution!
-								It is in general advised to recreate phoenix tables on replica
-								cluster before using this script. 
+                                NOTE: This option needs to be used with caution!
+                                It is in general advised to recreate phoenix tables on replica
+                                cluster before using this script. 
 
 -h, --help                      
                                 Display's usage information.
