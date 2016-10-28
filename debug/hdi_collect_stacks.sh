@@ -252,7 +252,7 @@ begin_collection()
 			# PREPARE FILE PATH
 			#
 			FILE_PATH=$COLLECTION_DIR/$JVM_PROCESS.$THIS_PID.$THIS_USER.$CURRENT_ITERATION.`date +"%m-%d-%Y_%T_%Z"`
-			su - $THIS_USER -c "jstack $THIS_PID" > $FILE_PATH
+			su - $THIS_USER -c "jstack -l $THIS_PID" > $FILE_PATH
 		done
 
 		sleep $SAMPLING_INTERVAL
