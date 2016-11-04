@@ -565,6 +565,8 @@ done
 # PERFORM MIGRATION OF EXISTING DATA IF REQUESTED BY USER
 #------------------------------------------------------------------
 
+TABLE_COPY_STRING=
+
 if [[ $MIGRATE_EXISTING_DATA == true ]]
 then
 	for K in "${!TABLE_TS_MAP[@]}"
@@ -572,9 +574,19 @@ then
 		CURRENT_TABLE=$K
 		END_TS=${TABLE_TS_MAP[$K]}
 		
-		echo "[INFO] Transferring pre-existing data of table '$CURRENT_TABLE' upto END_TIMESTAMP='$END_TS'"
-		echo "[INFO] Running command: 'hbase org.apache.hadoop.hbase.mapreduce.CopyTable --peer.adr=$REPLICATION_PEER --endtime=$END_TS $CURRENT_TABLE'"
-		hbase org.apache.hadoop.hbase.mapreduce.CopyTable --peer.adr=$REPLICATION_PEER --endtime=$END_TS $CURRENT_TABLE > /dev/null 2>&1
+		if [[ -z $TABLE_COPY_STRING ]]
+		then
+			TABLE_COPY_STRING="$CURRENT_TABLE:0:$END_TS"
+		else
+			TABLE_COPY_STRING="$TABLE_COPY_STRING;$CURRENT_TABLE:0:$END_TS"
+		fi 
+
 	done
+
+	echo $TABLE_COPY_STRING
+
+	echo '[INFO] Running ./nohup_hdi_copy_table.sh -t $TABLE_COPY_STRING -p $REPLICATION_PEER'
+	./nohup_hdi_copy_table.sh -t "$TABLE_COPY_STRING" -p "$REPLICATION_PEER" -m $MACHINE
 fi
+
 
