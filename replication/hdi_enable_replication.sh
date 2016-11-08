@@ -193,7 +193,8 @@ process_arguments()
 				;;
 
 			-sp|--src-ambari-password)  
-				if [ -n "$2" ]; then
+				if [ -n "$2" ] 
+				then
 					SRC_AMBARI_PASSWORD=$2
 					shift
 				else
@@ -215,7 +216,8 @@ process_arguments()
 				;;
 
 			-du|--dst-ambari-user)  
-				if [ -n "$2" ]; then
+				if [ -n "$2" ] 
+				then
 					DST_AMBARI_USER=$2
 					shift
 				else
@@ -230,14 +232,15 @@ process_arguments()
 				;;
 
 			--dst-ambari-user=)
-			# Handle the case where no argument is specified after '=' sign.
+				# Handle the case where no argument is specified after '=' sign.
 				printf '[ERROR] -du or --dst-ambari-user requires non-empty ambari admin user name.' >&2
 				print_usage
 				exit 1
 				;;
 
 			-dp|--dst-ambari-password)  
-				if [ -n "$2" ]; then
+				if [ -n "$2" ] 
+				then
 					DST_AMBARI_PASSWORD=$2
 					shift
 				else
@@ -252,14 +255,15 @@ process_arguments()
 				;;
 
 			--dst-ambari-password=)
-			# Handle the case where no argument is specified after '=' sign.
+				# Handle the case where no argument is specified after '=' sign.
 				printf '[ERROR] -dp or --dst-ambari-password requires non-empty ambari admin user password.' >&2
 				print_usage
 				exit 1
 				;;
 
 			-t|--table-list)  
-				if [ -n "$2" ]; then
+				if [ -n "$2" ] 
+				then
 					TABLE_LIST=$2
 					shift
 				else
@@ -272,14 +276,17 @@ process_arguments()
 			--table-list=?*)
 				TABLE_LIST=${1#*=} 
 				;;
+
 			--table-list=)
-			# Handle the case where no argument is specified after '=' sign.
+				# Handle the case where no argument is specified after '=' sign.
 				printf '[ERROR] -t or --table-list requires non-empty list of tables to be replicated.' >&2
 				print_usage
 				exit 1
 				;;
+
 			-m|--machine)  
-				if [ -n "$2" ]; then
+				if [ -n "$2" ]; 
+				then
 					MACHINE=$2
 					shift
 				else
@@ -292,8 +299,9 @@ process_arguments()
 			--machine=?*)
 				MACHINE=${1#*=} 
 				;;
+
 			--machine=)
-			# Handle the case where no argument is specified after '=' sign.
+				# Handle the case where no argument is specified after '=' sign.
 				printf '[ERROR] -m or --machine requires non-empty machine name.' >&2
 				print_usage
 				exit 1
@@ -302,27 +310,34 @@ process_arguments()
 			-ip)
 				USE_IP=true
 				;;
+
 			-cp)
 				MIGRATE_EXISTING_DATA=true
 				;;
+
 			-copydata)
 				MIGRATE_EXISTING_DATA=true
 				;;
+
 			-rpm)
 				REPLICATE_PHOENIX_SYSTEM_TABLES=true
 				;;
+
 			-replicate-phoenix-meta)
 				REPLICATE_PHOENIX_SYSTEM_TABLES=true
 				;;
+
 			--)
 				shift
 				break
 				;;
+
 			-?*)
 				printf '[WARN] Ignoring unknown option: %s\n' "$1" >&2
 				;;
+
 			*)  
-		   # Breaking out of while loop as there are no more arguments left.
+			   # Breaking out of while loop as there are no more arguments left.
 				break
 		esac
 
@@ -345,13 +360,15 @@ process_arguments()
 
 validate_arguments()
 {
-	if [[ -z "${SRC_CLUSTER// }" ]] || [[ -z "${SRC_AMBARI_PASSWORD// }" ]] || [[ -z "${DST_CLUSTER// }" ]] || [[ -z "${DST_AMBARI_PASSWORD// }" ]]; then
+	if [[ -z "${SRC_CLUSTER// }" ]] || [[ -z "${SRC_AMBARI_PASSWORD// }" ]] || [[ -z "${DST_CLUSTER// }" ]] || [[ -z "${DST_AMBARI_PASSWORD// }" ]] 
+	then
 		printf '[ERROR] Mandatory arguments missing.\n' >&2
 		print_usage
 		exit 1
 	fi
 
-	if [[ ! -z $MACHINE ]] && [[ $MACHINE != hn* ]]; then
+	if [[ ! -z $MACHINE ]] && [[ $MACHINE != hn* ]] 
+	then
 		printf '[ERROR] -m accepts only hn0 or hn1 as arguments.\n' >&2
 		exit 1
 	fi
@@ -360,7 +377,8 @@ validate_arguments()
 	#
 	THIS_MACHINE=`hostname`
 
-	if [[ $THIS_MACHINE != $MACHINE* ]]; then
+	if [[ $THIS_MACHINE != $MACHINE* ]] 
+	then
 		printf '[ERROR] Not the correct machine to execute the script. Exiting!\n' >&2
 		exit 0
 	fi
@@ -378,7 +396,8 @@ validate_ambari_credentials()
 	grep -i "access.*denied" /tmp/hbase.json > /dev/null 2>&1
 
 	RESULT=$?
-	if [ $RESULT -eq 0 ]; then
+	if [ $RESULT -eq 0 ]
+	then
 		echo "[ERROR] Invalid Ambari username or password for cluster $SRC_CLUSTER. Exiting!"
 		cat /tmp/hbase.json | sed -e 's/^/[INFO] /g'
 		exit 134
@@ -390,7 +409,8 @@ validate_ambari_credentials()
 	grep -i "access.*denied" /tmp/hbase.json > /dev/null 2>&1
 
 	RESULT=$?
-	if [ $RESULT -eq 0 ]; then
+	if [ $RESULT -eq 0 ] 
+	then
 		echo "[ERROR] Invalid Ambari username or password for cluster $DST_CLUSTER Exiting!"
 		cat /tmp/hbase.json | sed -e 's/^/[INFO] /g'
 		exit 134
@@ -408,7 +428,8 @@ set_replication_peer ()
 	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.azurehdinsight.net/api/v1/clusters/$DST_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
 	grep tag /tmp/hbase.json > /dev/null
 
-	if (( $? !=  0 )) ; then
+	if (( $? !=  0 ))  
+	then
 		echo "[ERROR] Could not set replication peer."
 		echo "[ERROR] Curl command failed to query '$DST_CLUSTER' due to following reason:"
 		cat /tmp/hbase.json  | sed -e 's/^/[INFO] /g'
@@ -542,7 +563,8 @@ do
 	# VALIDATE WHETHER REPLICATION WAS ENABLED SUCCESSFULLY OR NOT.
 	# INITIATE TRANSFER OF EXISTING DATA IF REPLICATION WAS SUCCESSFUL.
 	#
-	if [ $RESULT_VAL -eq 0 ]; then
+	if [ $RESULT_VAL -eq 0 ] 
+	then
 		echo "[ERROR] Replication could not be enabled on table '$user_table' due to following error(s):"
 		grep "ERROR:" /tmp/hbase.out  | sed -e 's/^/[ERROR] /g'
 	else
