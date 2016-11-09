@@ -591,6 +591,7 @@ TABLE_COPY_STRING=
 
 if [[ $MIGRATE_EXISTING_DATA == true ]]
 then
+
 	for K in "${!TABLE_TS_MAP[@]}"
 	do
 		CURRENT_TABLE=$K
@@ -607,8 +608,17 @@ then
 
 	echo $TABLE_COPY_STRING
 
-	echo '[INFO] Running ./nohup_hdi_copy_table.sh -t $TABLE_COPY_STRING -p $REPLICATION_PEER'
-	./nohup_hdi_copy_table.sh -t "$TABLE_COPY_STRING" -p "$REPLICATION_PEER" -m $MACHINE
+	# DOWNLOAD hdi_copy_table.sh script
+	#
+	echo "[INFO] Downloading https://raw.githubusercontent.com/Azure/hbase-utils/master/replication/nohup_hdi_copy_table.sh script to /tmp directory"
+	
+	wget https://raw.githubusercontent.com/Azure/hbase-utils/master/replication/nohup_hdi_copy_table.sh -O /tmp/nohup_hdi_copy_table.sh
+
+	chmod +x /tmp/nohup_hdi_copy_table.sh
+
+	echo '[INFO] Running /tmp/nohup_hdi_copy_table.sh -t $TABLE_COPY_STRING -p $REPLICATION_PEER'
+
+	/tmp/nohup_hdi_copy_table.sh -t "$TABLE_COPY_STRING" -p "$REPLICATION_PEER" -m $MACHINE
 fi
 
 
