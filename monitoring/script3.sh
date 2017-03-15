@@ -1,2 +1,4 @@
 #!/bin/bash
-sudo sh /tmp/omsagent.x64.sh --purge
+sudo dpkg -P omsconfig
+sudo dpkg -P omsagent
+sudo rm -r /opt/microsoft/omsagent
