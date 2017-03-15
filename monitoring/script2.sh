@@ -1,6 +1,7 @@
 #!/bin/bash
-wget https://github.com/Microsoft/OMS-Agent-for-Linux/releases/download/OMSAgent-201610-v1.2.0-148/omsagent-1.2.0-148.universal.x64.sh -O /tmp/omsagent.x64.sh
+wget https://github.com/Microsoft/OMS-Agent-for-Linux/releases/download/OMSAgent-201702-v1.3.1-15/omsagent-1.3.1-15.universal.x64.sh -O /tmp/omsagent.x64.sh
 sudo sh /tmp/omsagent.x64.sh --upgrade
+sudo sh -x /opt/microsoft/omsagent/bin/omsadmin.sh -w $1 -s $2
 
 if [[ $HOSTNAME == hn* ]];
 then
@@ -14,11 +15,4 @@ then
   sudo wget https://raw.githubusercontent.com/Azure/hbase-utils/master/monitoring/hbase.zookeeper.conf -O /etc/opt/microsoft/omsagent/conf/omsagent.d/hbase.zookeeper.conf
 fi
 
-sudo wget https://raw.githubusercontent.com/Azure/hbase-utils/master/monitoring/filter_hdinsight.rb -O /opt/microsoft/omsagent/plugin/filter_hdinsight.rb
-
-sudo wget https://raw.githubusercontent.com/Azure/hbase-utils/master/monitoring/hdinsightmanifestreader.rb -O  /opt/microsoft/omsagent/bin/hdinsightmanifestreader.rb
-sudo wget https://raw.githubusercontent.com/Azure/hbase-utils/master/monitoring/omsagent
-sudo cp omsagent /etc/sudoers.d/
-sudo sh ~/.bashrc
-sudo sh -x /opt/microsoft/omsagent/bin/omsadmin.sh -w $1 -s $2
-sudo service omsagent restart
+sudo /opt/microsoft/omsagent/bin/service_control restart
