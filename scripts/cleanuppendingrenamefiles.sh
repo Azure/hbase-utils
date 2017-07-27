@@ -19,7 +19,7 @@ while true; do
 done
 echo "All hbase folders clean and no rename pending files remain; master should start now; checking status..."
 retryCount=0
-while [[ $retryCount -le 5 ]]; do
+while [[ $retryCount -le 10 ]]; do
     hbaseStatus=$(echo "status"|hbase shell 2>&1 | grep "1 active master")
     if [[ ! -z $hbaseStatus ]]; then
         echo "HBase is now up and running"
@@ -30,7 +30,7 @@ while [[ $retryCount -le 5 ]]; do
     ((retryCount++))
     sleep 60
 done
-if [[ $retryCount -eq 6 ]]; then
-    echo "HBase Master not starting up; contact support - hdihbase@microsoft.com"
+if [[ $retryCount -eq 11 ]]; then
+    echo "HBase Master not starting up; contact support - hbase@microsoft.com"
 fi
 
