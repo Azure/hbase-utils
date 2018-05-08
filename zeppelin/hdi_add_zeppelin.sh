@@ -25,8 +25,13 @@ Mandatory arguments:
 -c
   DNS name of HBase Cluster
 -h
-  FQDN of head node host
+  FQDN of head node 0 
 
+Optional arguments:
+-------------------
+
+-u
+  Admin user for Ambari
 ...
 exit 132
 }
@@ -35,6 +40,7 @@ exit 132
 # INITIALIZE PARAMETERS
 #----------------------------------------------------------------
 
+AMBARI_USER=admin
 AMBARI_PASSWORD=
 CLUSTER=
 ZEPPELIN_CONFIG='{ "zeppelin.interpreters": "org.apache.zeppelin.jdbc.JDBCInterpreter,org.apache.zeppelin.markdown.Markdown,org.apache.zeppelin.shell.ShellInterpreter", "zeppelin.config.fs.dir": "file:///etc/zeppelin/conf/","zeppelin.anonymous.allowed": "true","zeppelin.notebook.storage": "org.apache.zeppelin.notebook.repo.VFSNotebookRepo", "zeppelin.server.port": "9995", "zeppelin.interpreter.config.upgrade": "true"}'
@@ -79,6 +85,16 @@ process_arguments()
                     exit 1
                 fi
                 ;;
+	    -u|--username)
+	        if [ -n "$2" ]; then
+		    AMBARI_USER = $2
+		    shift
+		else
+		    printf '[ERROR] -u requires non-empty ambari admin user name.' >&2
+		    print_usage
+		    exit 1
+		fi
+		;;
             *)
                 break
         esac
@@ -108,7 +124,7 @@ validate_ambari_credentials()
 {
     AMBARI_PASSWORD=`echo $AMBARI_PASSWORD`
     
-    curl -u admin:$AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
+    curl -u $AMBARI_USER:$AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
 	grep -i "access.*denied" /tmp/hbase.json > /dev/null 2>&1
 
 	RESULT=$?
@@ -121,7 +137,7 @@ validate_ambari_credentials()
 		echo "[INFO] Cluster credentials successfully validated."
 	fi
     
-    curl -v -X GET -u admin:$AMBARI_PASSWORD -H "X-Requested-By:ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/hosts/$HEADNODE_HOST_FQDN" -o /tmp/hbase.json 2> /dev/null
+    curl -v -X GET -u $AMBARI_USER:$AMBARI_PASSWORD -H "X-Requested-By:ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/hosts/$HEADNODE_HOST_FQDN" -o /tmp/hbase.json 2> /dev/null
     grep -i "requested resource doesn't exist" /tmp/hbase.json > /dev/null 2>&1
     
     RESULT=$?
@@ -141,7 +157,8 @@ validate_ambari_credentials()
 
 create_config()
 {
-    curl -u admin:$AMBARI_PASSWORD -i -X POST -d '{"type": "'"$1"'", "tag": "install", "properties": '"$2"'}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/configurations -H "X-Requested-By:ambari"
+    curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X POST -d '{"type": "'"$1"'", "tag": "install", "properties": '"$2"'}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/configurations -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
+
 }
 
 #----------------------------------------------------------------
@@ -150,7 +167,7 @@ create_config()
 apply_config()
 {
 
-    curl -u admin:$AMBARI_PASSWORD -i -X PUT -d '{"Clusters": {"desired_configs": { "type": "'"$1"'", "tag" :"install" }}}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER -H "X-Requested-By:ambari"
+    curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X PUT -d '{"Clusters": {"desired_configs": { "type": "'"$1"'", "tag" :"install" }}}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
 }
 
 #----------------------------------------------------------------
@@ -158,13 +175,13 @@ apply_config()
 #----------------------------------------------------------------
 install()
 {
-    curl -u admin:$AMBARI_PASSWORD -i -X PUT -d '{"ServiceInfo": {"state" : "INSTALLED"}}'  https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN -H "X-Requested-By:ambari"
+    curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X PUT -d '{"ServiceInfo": {"state" : "INSTALLED"}}'  https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
     wait_until "INSTALLED"
 }
 
 start_service()
 {
-    curl -u admin:$AMBARI_PASSWORD -i -X PUT -d '{"ServiceInfo": {"state" : "STARTED"}}'  https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN -H "X-Requested-By:ambari"
+    curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X PUT -d '{"ServiceInfo": {"state" : "STARTED"}}'  https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
     wait_until "STARTED"
 }
 
@@ -177,7 +194,7 @@ wait_until()
     finished=0
     while [ $finished -ne 1 ]
     do
-      str=$(curl -s -u admin:$AMBARI_PASSWORD https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN)
+      str=$(curl -s -u $AMBARI_USER:$AMBARI_PASSWORD https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN)
       if [[ $str == *"$1"* ]] || [[ $str == *"Service not found"* ]] 
       then
         finished=1
@@ -194,9 +211,25 @@ validate_arguments
 
 validate_ambari_credentials
 
-curl -u admin:$AMBARI_PASSWORD -i -X POST -d '{"ServiceInfo":{"service_name":"ZEPPELIN"}}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services -H "X-Requested-By:ambari"
+curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X POST -d '{"ServiceInfo":{"service_name":"ZEPPELIN"}}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
 
-curl -u admin:$AMBARI_PASSWORD -i -X POST -d '' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN/components/ZEPPELIN_MASTER -H "X-Requested-By:ambari"
+grep "201.*Created" /tmp/hbase.json > /dev/null
+
+if (( $? != 0 ))
+then
+	echo "[ERROR] Could not add ZEPPELIN SERVICE"
+	exit 1
+fi
+
+curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X POST -d '' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services/ZEPPELIN/components/ZEPPELIN_MASTER -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
+
+grep "201.*Created" /tmp/hbase.json > /dev/null
+if (( $? != 0 ))
+then
+	echo "[ERROR] Could not add ZEPPELIN_MASTER component"
+	exit 1
+fi
+
 create_config zeppelin-config "$ZEPPELIN_CONFIG"
 
 create_config zeppelin-env "$ZEPPELIN_ENV"
@@ -213,7 +246,7 @@ apply_config zeppelin-shiro-ini
 
 apply_config zeppelin-log4j-properties
 
-curl -u admin:$AMBARI_PASSWORD -i -X POST -d '{"host_components" : [{"HostRoles":{"component_name":"ZEPPELIN_MASTER"}}] }' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/hosts?Hosts/host_name=$HEADNODE_HOST_FQDN -H "X-Requested-By:ambari"
+curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X POST -d '{"host_components" : [{"HostRoles":{"component_name":"ZEPPELIN_MASTER"}}] }' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/hosts?Hosts/host_name=$HEADNODE_HOST_FQDN -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
 
 install
 
