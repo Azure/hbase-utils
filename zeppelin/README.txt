@@ -41,7 +41,7 @@ Sample Command:
 -----------------
 bash hdi_add_zeppelin.sh -c myhbasecluster -p myambaripassword\!123 -h hn0-myhbas.wgfwjgvbeworg.vwoirghrighpw.cloudapp.net
 
-
+**** IF EXECUTED SUCCESSFULLY YOU SHOULD BE ABLE TO SEE ZEPPELIN UNDER AMBARI DASHBOARD, ACCESS ZEPPELIN UI, CREATE NOTEBOOKS AND USE %jdbc(phoenix) INTERPRETER ****
 
 
 
