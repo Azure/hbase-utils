@@ -3,8 +3,6 @@
 #----------------------------------------------------------------
 # THIS SCRIPT ADDS INSTALLS AND STARTS ZEPPELIN ON HBASE CLUSTER 
 #----------------------------------------------------------------
-#Import helper module
-wget -O /tmp/HDInsightUtilities-v01.sh -q https://hdiconfigactions.blob.core.windows.net/linuxconfigactionmodulev01/HDInsightUtilities-v01.sh && source /tmp/HDInsightUtilities-v01.sh && rm -f /tmp/HDInsightUtilities-v01.sh
 
 
 #----------------------------------------------------------------
