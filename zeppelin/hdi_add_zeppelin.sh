@@ -3,6 +3,8 @@
 #----------------------------------------------------------------
 # THIS SCRIPT ADDS INSTALLS AND STARTS ZEPPELIN ON HBASE CLUSTER 
 #----------------------------------------------------------------
+#Import helper module
+wget -O /tmp/HDInsightUtilities-v01.sh -q https://hdiconfigactions.blob.core.windows.net/linuxconfigactionmodulev01/HDInsightUtilities-v01.sh && source /tmp/HDInsightUtilities-v01.sh && rm -f /tmp/HDInsightUtilities-v01.sh
 
 
 #----------------------------------------------------------------
@@ -30,11 +32,37 @@ ZEPPELIN_SHIRO_INI='{ "shiro_ini_content": "[users]\n# List of users with their 
 ZEPPELIN_LOG4J_PROPERTIES='{ "log4j_properties_content": "\nlog4j.rootLogger = INFO, dailyfile, ETW, Anonymizer, FullPIILogs\nlog4j.appender.stdout = org.apache.log4j.ConsoleAppender\nlog4j.appender.stdout.layout = org.apache.log4j.PatternLayout\nlog4j.appender.stdout.layout.ConversionPattern=%5p [%d] ({%t} %F[%M]:%L) - %m%n\nlog4j.appender.dailyfile.DatePattern=.yyyy-MM-dd\nlog4j.appender.dailyfile.Threshold = INFO\nlog4j.appender.dailyfile = org.apache.log4j.DailyRollingFileAppender\nlog4j.appender.dailyfile.File = ${zeppelin.log.file}\nlog4j.appender.dailyfile.layout = org.apache.log4j.PatternLayout\nlog4j.appender.dailyfile.layout.ConversionPattern=%5p [%d] ({%t} %F[%M]:%L) - %m%n\n\n#EtwLog Appender\n#sends Phoenix logs to customer storage account\nlog4j.appender.ETW=com.microsoft.log4jappender.EtwAppender\nlog4j.appender.ETW.source=HadoopServiceLog\nlog4j.appender.ETW.component=default\nlog4j.appender.ETW.layout=org.apache.log4j.TTCCLayout\nlog4j.appender.ETW.OSType=Linux\n\n# Anonymize Appender\n# Sends anonymized HDP service logs to our storage account\nlog4j.appender.Anonymizer.patternGroupResource=${patternGroup.filename}\nlog4j.appender.Anonymizer=com.microsoft.log4jappender.AnonymizeLogAppender\nlog4j.appender.Anonymizer.component=default\nlog4j.appender.Anonymizer.layout=org.apache.log4j.TTCCLayout\nlog4j.appender.Anonymizer.Threshold=DEBUG\nlog4j.appender.Anonymizer.logFilterResource=${logFilter.filename}\nlog4j.appender.Anonymizer.source=CentralAnonymizedLogs\nlog4j.appender.Anonymizer.OSType=Linux\n\n# Full PII log Appender\n# Sends  PII HDP service logs to our storage account\nlog4j.appender.FullPIILogs=com.microsoft.log4jappender.FullPIILogAppender\nlog4j.appender.FullPIILogs.component=default\nlog4j.appender.FullPIILogs.layout=org.apache.log4j.TTCCLayout\nlog4j.appender.FullPIILogs.Threshold=DEBUG\nlog4j.appender.FullPIILogs.source=CentralFullServicePIILogs\nlog4j.appender.FullPIILogs.OSType=Linux\nlog4j.appender.FullPIILogs.SuffixHadoopEntryType=true\n"}'
 HEADNODE_HOST_FQDN=
 checkHostNameAndSetClusterName() {
+    PRIMARYHEADNODE=`get_primary_headnode`
+    SECONDARYHEADNODE=`get_secondary_headnode`
+    PRIMARY_HN_NUM=`get_primary_headnode_number`
+    SECONDARY_HN_NUM=`get_secondary_headnode_number`
+
+    #Check if values retrieved are empty, if yes, exit with error
+    if [[ -z $PRIMARYHEADNODE ]]; then
+        echo "Could not determine primary headnode."
+	exit 139
+    fi
+
+    if [[ -z $SECONDARYHEADNODE ]]; then
+        echo "Could not determine secondary headnode."
+	exit 140
+    fi
+
+    if [[ -z "$PRIMARY_HN_NUM" ]]; then
+        echo "Could not determine primary headnode number."
+	exit 141
+    fi
+
+    if [[ -z "$SECONDARY_HN_NUM" ]]; then
+	echo "Could not determine secondary headnode number."
+	exit 142
+    fi
+
     HEADNODE_HOST_FQDN=$(hostname -f)
-    echo "HEADNODE_HOST_FQDN=$HEADNODE_HOST_FQDN. Lower case: ${HEADNODE_HOST_FQDN,,}"
-    if ! [[ $HEADNODE_HOST_FQDN == hn0* ]]; then 
-        echo "[ERROR] Script must be run from headnode0"
-        exit 133
+    echo "primary headnode=$PRIMARYHEADNODE. Lower case: ${PRIMARYHEADNODE,,}"
+    if [ "${HEADNODE_HOST_FQDN,,}" != "${PRIMARYHEADNODE,,}" ]; then
+        echo "$HEADNODE_HOST_FQDN is not primary headnode. This script has to be run on $PRIMARYHEADNODE."
+        exit 0
     fi
     CLUSTER=$(sed -n -e 's/.*\.\(.*\)-ssh.*/\1/p' <<< HEADNODE_HOST_FQDN)
     if [ -z "$CLUSTER" ]; then
