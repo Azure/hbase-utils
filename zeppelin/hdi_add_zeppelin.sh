@@ -3,6 +3,8 @@
 #----------------------------------------------------------------
 # THIS SCRIPT ADDS INSTALLS AND STARTS ZEPPELIN ON HBASE CLUSTER 
 #----------------------------------------------------------------
+#Import helper module
+wget -O /tmp/HDInsightUtilities-v01.sh -q https://hdiconfigactions.blob.core.windows.net/linuxconfigactionmodulev01/HDInsightUtilities-v01.sh && source /tmp/HDInsightUtilities-v01.sh && rm -f /tmp/HDInsightUtilities-v01.sh
 
 
 #----------------------------------------------------------------
@@ -10,37 +12,18 @@
 #----------------------------------------------------------------
 
 
-print_usage()
-{
-cat << ...
-Usage:
-$0
-
-Mandatory arguments:
---------------------
-
--p
-  Admin password for Ambari
-  
--c
-  DNS name of HBase Cluster
--h
-  FQDN of head node 0 
-
-Optional arguments:
--------------------
-
--u
-  Admin user for Ambari
-...
-exit 132
+print_usage() {
+    echo ""
+    echo "Usage: sudo -E bash hdi_add_zeppelin.sh";
+    echo "This script does NOT require Ambari username and password"
+    exit 132;
 }
 
 #----------------------------------------------------------------
 # INITIALIZE PARAMETERS
 #----------------------------------------------------------------
 
-AMBARI_USER=admin
+AMBARI_USER=hdinsightwatchdog
 AMBARI_PASSWORD=
 CLUSTER=
 ZEPPELIN_CONFIG='{ "zeppelin.interpreters": "org.apache.zeppelin.jdbc.JDBCInterpreter,org.apache.zeppelin.markdown.Markdown,org.apache.zeppelin.shell.ShellInterpreter", "zeppelin.config.fs.dir": "file:///etc/zeppelin/conf/","zeppelin.anonymous.allowed": "true","zeppelin.notebook.storage": "org.apache.zeppelin.notebook.repo.VFSNotebookRepo", "zeppelin.server.port": "9995", "zeppelin.interpreter.config.upgrade": "true"}'
@@ -48,82 +31,55 @@ ZEPPELIN_ENV='{ "log4j_properties_content": "\nlog4j.rootLogger = INFO, dailyfil
 ZEPPELIN_SHIRO_INI='{ "shiro_ini_content": "[users]\n# List of users with their password allowed to access Zeppelin.\n# To use a different strategy (LDAP / Database / ...) check the shiro doc at http://shiro.apache.org/configuration.html#Configuration-INISections\nadmin = admin, admin\nuser1 = user1, role1, role2\nuser2 = user2, role3\nuser3 = user3, role2\n\n# Sample LDAP configuration, for user Authentication, currently tested for single Realm\n[main]\n### A sample PAM configuration\n#pamRealm=org.apache.zeppelin.realm.PamRealm\n#pamRealm.service=sshd\n\n\nsessionManager = org.apache.shiro.web.session.mgt.DefaultWebSessionManager\n### If caching of user is required then uncomment below lines\ncacheManager = org.apache.shiro.cache.MemoryConstrainedCacheManager\nsecurityManager.cacheManager = $cacheManager\n\nsecurityManager.sessionManager = $sessionManager\n# 86,400,000 milliseconds = 24 hour\nsecurityManager.sessionManager.globalSessionTimeout = 86400000\nshiro.loginUrl = /api/login\n\n[roles]\nrole1 = *\nrole2 = *\nrole3 = *\nadmin = *\n\n[urls]\n# This section is used for url-based security.\n# You can secure interpreter, configuration and credential information by urls. Comment or uncomment the below urls that you want to hide.\n# anon means the access is anonymous.\n# authc means Form based Auth Security\n# To enfore security, comment the line below and uncomment the next one\n/api/version = anon\n#/api/interpreter/** = authc, roles[admin]\n#/api/configurations/** = authc, roles[admin]\n#/api/credential/** = authc, roles[admin]\n/** = anon\n#/** = authc\n"}'
 ZEPPELIN_LOG4J_PROPERTIES='{ "log4j_properties_content": "\nlog4j.rootLogger = INFO, dailyfile, ETW, Anonymizer, FullPIILogs\nlog4j.appender.stdout = org.apache.log4j.ConsoleAppender\nlog4j.appender.stdout.layout = org.apache.log4j.PatternLayout\nlog4j.appender.stdout.layout.ConversionPattern=%5p [%d] ({%t} %F[%M]:%L) - %m%n\nlog4j.appender.dailyfile.DatePattern=.yyyy-MM-dd\nlog4j.appender.dailyfile.Threshold = INFO\nlog4j.appender.dailyfile = org.apache.log4j.DailyRollingFileAppender\nlog4j.appender.dailyfile.File = ${zeppelin.log.file}\nlog4j.appender.dailyfile.layout = org.apache.log4j.PatternLayout\nlog4j.appender.dailyfile.layout.ConversionPattern=%5p [%d] ({%t} %F[%M]:%L) - %m%n\n\n#EtwLog Appender\n#sends Phoenix logs to customer storage account\nlog4j.appender.ETW=com.microsoft.log4jappender.EtwAppender\nlog4j.appender.ETW.source=HadoopServiceLog\nlog4j.appender.ETW.component=default\nlog4j.appender.ETW.layout=org.apache.log4j.TTCCLayout\nlog4j.appender.ETW.OSType=Linux\n\n# Anonymize Appender\n# Sends anonymized HDP service logs to our storage account\nlog4j.appender.Anonymizer.patternGroupResource=${patternGroup.filename}\nlog4j.appender.Anonymizer=com.microsoft.log4jappender.AnonymizeLogAppender\nlog4j.appender.Anonymizer.component=default\nlog4j.appender.Anonymizer.layout=org.apache.log4j.TTCCLayout\nlog4j.appender.Anonymizer.Threshold=DEBUG\nlog4j.appender.Anonymizer.logFilterResource=${logFilter.filename}\nlog4j.appender.Anonymizer.source=CentralAnonymizedLogs\nlog4j.appender.Anonymizer.OSType=Linux\n\n# Full PII log Appender\n# Sends  PII HDP service logs to our storage account\nlog4j.appender.FullPIILogs=com.microsoft.log4jappender.FullPIILogAppender\nlog4j.appender.FullPIILogs.component=default\nlog4j.appender.FullPIILogs.layout=org.apache.log4j.TTCCLayout\nlog4j.appender.FullPIILogs.Threshold=DEBUG\nlog4j.appender.FullPIILogs.source=CentralFullServicePIILogs\nlog4j.appender.FullPIILogs.OSType=Linux\nlog4j.appender.FullPIILogs.SuffixHadoopEntryType=true\n"}'
 HEADNODE_HOST_FQDN=
-#----------------------------------------------------------------
-# PARSE AND PROCESS COMMAND LINE PARAMETERS
-#----------------------------------------------------------------
-process_arguments() 
-{
-    while :; do
-        case $1 in
-            -p|--password)
-                if [ -n "$2" ]; then
-                    AMBARI_PASSWORD=$2
-                    shift
-                else
-                    printf '[ERROR] -p requires non-empty ambari admin user password.' >&2
-                    print_usage
-                    exit 1
-                fi
-                ;;
-            -c|--clustername)
-                if [ -n "$2" ]; then
-                    CLUSTER=$2
-                    shift
-                else
-                    printf '[ERROR] -c requires non-empty DNS name of HBase cluster.' >&2
-                    print_usage
-                    exit 1
-                fi
-                ;;
-            -h|--hostname)
-                if [ -n "$2" ];then
-                    HEADNODE_HOST_FQDN=$2
-                    shift
-                else
-                    printf '[ERROR] -h requires non-empty head node host FQDN.' >&2
-                    print_usage
-                    exit 1
-                fi
-                ;;
-	    -u|--username)
-	        if [ -n "$2" ]; then
-		    AMBARI_USER = $2
-		    shift
-		else
-		    printf '[ERROR] -u requires non-empty ambari admin user name.' >&2
-		    print_usage
-		    exit 1
-		fi
-		;;
-            *)
-                break
-        esac
-        shift
-    done
+checkHostNameAndSetClusterName() {
+    PRIMARYHEADNODE=`get_primary_headnode`
+    SECONDARYHEADNODE=`get_secondary_headnode`
+    PRIMARY_HN_NUM=`get_primary_headnode_number`
+    SECONDARY_HN_NUM=`get_secondary_headnode_number`
+
+    #Check if values retrieved are empty, if yes, exit with error
+    if [[ -z $PRIMARYHEADNODE ]]; then
+        echo "Could not determine primary headnode."
+	exit 139
+    fi
+
+    if [[ -z $SECONDARYHEADNODE ]]; then
+        echo "Could not determine secondary headnode."
+	exit 140
+    fi
+
+    if [[ -z "$PRIMARY_HN_NUM" ]]; then
+        echo "Could not determine primary headnode number."
+	exit 141
+    fi
+
+    if [[ -z "$SECONDARY_HN_NUM" ]]; then
+	echo "Could not determine secondary headnode number."
+	exit 142
+    fi
+
+    HEADNODE_HOST_FQDN=$(hostname -f)
+    echo "primary headnode=$PRIMARYHEADNODE. Lower case: ${PRIMARYHEADNODE,,}"
+    if [ "${HEADNODE_HOST_FQDN,,}" != "${PRIMARYHEADNODE,,}" ]; then
+        echo "$HEADNODE_HOST_FQDN is not primary headnode. This script has to be run on $PRIMARYHEADNODE."
+        exit 0
+    fi
+    CLUSTER=$(sed -n -e 's/.*\.\(.*\)-ssh.*/\1/p' <<< HEADNODE_HOST_FQDN)
+    if [ -z "$CLUSTER" ]; then
+        CLUSTER=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nprint ClusterManifestParser.parse_local_manifest().deployment.cluster_name" | python)
+        if [ $? -ne 0 ]; then
+            echo "[ERROR] Cannot determine cluster name. Exiting!"
+            exit 133
+        fi
+    fi
+    echo "Cluster Name=$CLUSTER"
 }
-
-#----------------------------------------------------------------
-# VALIDATE MANDATORY COMMAND LINE PARAMETERS
-#----------------------------------------------------------------
-
-validate_arguments()
-{
-    if [[ -z "${CLUSTER// }" ]] || [[ -z "${AMBARI_PASSWORD// }" ]] || [[ -z "${HEADNODE_HOST_FQDN// }" ]]
-	then
-		printf '[ERROR] Mandatory arguments missing.\n' >&2
-		print_usage
-		exit 1
-	fi
-}
-
 #----------------------------------------------------------------
 # VALIDATE AMBARI CREDENTIALS
 #----------------------------------------------------------------
 
 validate_ambari_credentials()
 {
-    AMBARI_PASSWORD=`echo $AMBARI_PASSWORD`
-    
     curl -u $AMBARI_USER:$AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
 	grep -i "access.*denied" /tmp/hbase.json > /dev/null 2>&1
 
@@ -205,10 +161,18 @@ wait_until()
 #----------------------------------------------------------------
 # MAIN
 #----------------------------------------------------------------
-process_arguments $@
+##############################
+if [ "$(id -u)" != "0" ]; then
+    echo "[ERROR] The script has to be run as root."
+    print_usage
+fi
 
-validate_arguments
+AMBARI_USER=$(echo -e "import hdinsight_common.Constants as Constants\nprint Constants.AMBARI_WATCHDOG_USERNAME" | python)
 
+echo "USERID=$AMBARI_USER"
+
+AMBARI_PASSWORD=$(echo -e "import hdinsight_common.ClusterManifestParser as ClusterManifestParser\nimport hdinsight_common.Constants as Constants\nimport base64\nbase64pwd = ClusterManifestParser.parse_local_manifest().ambari_users.usersmap[Constants.AMBARI_WATCHDOG_USERNAME].password\nprint base64.b64decode(base64pwd)" | python)
+checkHostNameAndSetClusterName
 validate_ambari_credentials
 
 curl -u $AMBARI_USER:$AMBARI_PASSWORD -i -X POST -d '{"ServiceInfo":{"service_name":"ZEPPELIN"}}' https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/services -H "X-Requested-By:ambari" -o /tmp/hbase.json 2> /dev/null
