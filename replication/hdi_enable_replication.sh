@@ -76,8 +76,11 @@ Optinal arguments:
 
                                 NOTE: This option needs to be used with caution!
                                 It is in general advised to recreate phoenix tables on replica
-                                cluster before using this script. 
+                                cluster before using this script.
 
+-x, -suffix
+                                This option enables to specify custom cluster suffix; 
+                                default is azurehdinsight.net
 -h, --help                      
                                 Display's usage information.
 
@@ -113,6 +116,7 @@ MACHINE=
 USE_IP=false
 MIGRATE_EXISTING_DATA=false
 REPLICATE_PHOENIX_SYSTEM_TABLES=false
+SUFFIX=$SUFFIX
 
 #------------------------------------------------------------------
 # PARSE AND PROCESS COMMAND LINE ARGUMENTS
@@ -261,6 +265,29 @@ process_arguments()
 				exit 1
 				;;
 
+			-x|--suffix)
+				if [ -n "$2" ]
+				then
+				        SUFFIX=$2
+					shift
+				else
+				        printf '[ERROR] -x or --suffix requires non-empty suffix.' >&2
+					print_usage
+					exit 1
+				fi
+				;;
+
+			--suffix=?*)
+				SUFFIX=${1#*=}
+				;;
+
+                        --suffix=)
+				# Handle the case where no argument is specificed after '=' sign.
+				printf '[ERROR] -x or --suffix requires non-empty suffix.' >&2
+				print_usage
+				exit 1
+				;;
+
 			-t|--table-list)  
 				if [ -n "$2" ] 
 				then
@@ -392,7 +419,7 @@ validate_ambari_credentials()
 {
 	SRC_AMBARI_PASSWORD=`echo $SRC_AMBARI_PASSWORD`
 
-	curl -u $SRC_AMBARI_USER:$SRC_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$SRC_CLUSTER.azurehdinsight.net/api/v1/clusters/$SRC_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
+	curl -u $SRC_AMBARI_USER:$SRC_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$SRC_CLUSTER.$SUFFIX/api/v1/clusters/$SRC_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
 	grep -i "access.*denied" /tmp/hbase.json > /dev/null 2>&1
 
 	RESULT=$?
@@ -405,7 +432,7 @@ validate_ambari_credentials()
 		echo "[INFO] Primary cluster credentials successfully validated."
 	fi
 
-	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.azurehdinsight.net/api/v1/clusters/$DST_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
+	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.$SUFFIX/api/v1/clusters/$DST_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
 	grep -i "access.*denied" /tmp/hbase.json > /dev/null 2>&1
 
 	RESULT=$?
@@ -425,7 +452,7 @@ validate_ambari_credentials()
 
 set_replication_peer () 
 {
-	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.azurehdinsight.net/api/v1/clusters/$DST_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
+	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.$SUFFIX/api/v1/clusters/$DST_CLUSTER?fields=Clusters/desired_configs/hbase-site" -o /tmp/hbase.json 2> /dev/null
 	grep tag /tmp/hbase.json > /dev/null
 
 	if (( $? !=  0 ))  
@@ -437,7 +464,7 @@ set_replication_peer ()
 	fi
 
 	local VERSIONTAG=`grep tag /tmp/hbase.json  | awk '{ print $3 }' | sed -e 's/"//g' | sed -e 's/,.*//g'`
-	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.azurehdinsight.net/api/v1/clusters/$DST_CLUSTER/configurations?type=hbase-site&tag=$VERSIONTAG" -o /tmp/hbase.json 2> /dev/null
+	curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.$SUFFIX/api/v1/clusters/$DST_CLUSTER/configurations?type=hbase-site&tag=$VERSIONTAG" -o /tmp/hbase.json 2> /dev/null
 
 	local TEMPQUORUM=`cat /tmp/hbase.json | grep "hbase.zookeeper.quorum" | awk '{ print $3 }'`
 	local TEMPPORT=`cat /tmp/hbase.json | grep "hbase.zookeeper.property.clientPort" | awk '{ print $3 }'`
@@ -458,7 +485,7 @@ set_replication_peer ()
 		IFS=',' read -ra ZK_MACHINE_ARRAY <<< "$ZKQUORUM"
 		for ZK_MACHINE in "${ZK_MACHINE_ARRAY[@]}"
 		do
-			curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.azurehdinsight.net/api/v1/clusters/$DST_CLUSTER/hosts/$ZK_MACHINE" -o /tmp/hbase.json 2> /dev/null
+			curl -u $DST_AMBARI_USER:$DST_AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$DST_CLUSTER.$SUFFIX/api/v1/clusters/$DST_CLUSTER/hosts/$ZK_MACHINE" -o /tmp/hbase.json 2> /dev/null
 			ZKIP=`grep \"ip\" /tmp/hbase.json | awk '{ print $3 }' | sed -e 's/"//g' | sed -e 's/,$//g'`
 
 			if [[ ! -z $ZKQUORUMIP ]]
@@ -499,7 +526,7 @@ set_tables_to_replicate ()
 	then
 		TABLES_ARRAY=(`echo $TABLE_LIST | sed -e 's/;/ /g'`)
 	else
-		TABLES_ARRAY=(`curl -u $SRC_AMBARI_USER:$SRC_AMBARI_PASSWORD -G "https://$SRC_CLUSTER.azurehdinsight.net/hbaserest/" 2> /dev/null`)
+		TABLES_ARRAY=(`curl -u $SRC_AMBARI_USER:$SRC_AMBARI_PASSWORD -G "https://$SRC_CLUSTER.$SUFFIX/hbaserest/" 2> /dev/null`)
 	fi
 
 	# TODO: VALIDATION OF TABLES IS NOT EASY AS LIST OPERATION COULD TAKE TIME. 
