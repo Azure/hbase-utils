@@ -116,7 +116,7 @@ MACHINE=
 USE_IP=false
 MIGRATE_EXISTING_DATA=false
 REPLICATE_PHOENIX_SYSTEM_TABLES=false
-SUFFIX=$SUFFIX
+SUFFIX=azurehdinsight.net
 
 #------------------------------------------------------------------
 # PARSE AND PROCESS COMMAND LINE ARGUMENTS
