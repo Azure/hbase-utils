@@ -21,6 +21,7 @@ def get_cluster_topology_json(cluster_manifest):
         raise_error("Failed to get cluster_topology_json_url from cluster manifest")
 
 def parse_topo_info(cluster_topology_json, fqdn_suffix):
+    print cluster_topology_json
     workernode_info = json.loads(cluster_topology_json)["hostGroups"]["workernode"]
     host_info = []
     for node in workernode_info:
