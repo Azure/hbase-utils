@@ -2,7 +2,6 @@ from hdinsight_common.AmbariHelper import AmbariHelper
 import requests, json
 import logging
 
-FAULT_DOMAIN = "faultDomain"
 UPDATE_DOMAIN = "updateDomain"
 RACK = "rack"
 FQDN = "fqdn"
@@ -24,17 +23,11 @@ def get_cluster_topology_json(cluster_manifest):
 def parse_topo_info(cluster_topology_json, fqdn_suffix):
     workernode_info = json.loads(cluster_topology_json)["hostGroups"]["workernode"]
     host_info = []
-    ud_set = set()
-    for node in workernode_info:
-        ud_set.add(node[UPDATE_DOMAIN])
-    ud_list = sorted(ud_set)
-    ud_length = max(map(int, ud_list)) + 1
     for node in workernode_info:
         host = {
-                FAULT_DOMAIN: str(node[FAULT_DOMAIN]),
                 UPDATE_DOMAIN: str(node[UPDATE_DOMAIN]),
                 FQDN: node[FQDN]+"."+str(fqdn_suffix),
-                RACK: "/rack"+str((int(node[UPDATE_DOMAIN]) - int(node[FAULT_DOMAIN])) % ud_length)
+                RACK: "/rack"+str(node[UPDATE_DOMAIN])
         }
         host_info.append(host)
     return host_info
