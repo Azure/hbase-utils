@@ -507,7 +507,7 @@ set_replication_peer ()
 	hbase shell << ... 2> /dev/null | sed -e 's/^/[INFO] /g'
 	remove_peer '1'
 	list_peers
-	add_peer '1', "$REPLICATION_PEER"
+	add_peer '1', CLUSTER_KEY => "$REPLICATION_PEER"
 	list_peers
 	exit
 ...
