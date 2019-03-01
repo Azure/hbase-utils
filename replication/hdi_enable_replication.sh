@@ -526,9 +526,9 @@ set_tables_to_replicate ()
 	then
 		TABLES_ARRAY=(`echo $TABLE_LIST | sed -e 's/;/ /g'`)
 	else
-               # Retrieve a list of tables for replication using hbase shell command
-               hbase shell <<< "list"> tables.out
-               TABLES_ARRAY=($(awk '/TABLE/{f=1; next}; /[0-9]/{f=0} f' tables.out))
+                # Retrieve a list of tables for replication using hbase shell command
+                hbase shell <<< "list"> tables.out
+                TABLES_ARRAY=($(awk '/TABLE/{f=1; next}; /[0-9]/{f=0} f' tables.out))
 	fi
 
 	# TODO: VALIDATION OF TABLES IS NOT EASY AS LIST OPERATION COULD TAKE TIME. 
