@@ -504,7 +504,7 @@ set_replication_peer ()
 
 	echo "[INFO] Identified sink cluster peer address as: $REPLICATION_PEER."
 
-	hbase shell << ... 2> /dev/null | sed -e 's/^/[INFO] /g'
+	hbase --auth-as-server shell << ... 2> /dev/null | sed -e 's/^/[INFO] /g'
 	remove_peer '1'
 	list_peers
 	add_peer '1', CLUSTER_KEY => "$REPLICATION_PEER"
