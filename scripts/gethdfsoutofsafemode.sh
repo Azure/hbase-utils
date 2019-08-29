@@ -1,6 +1,6 @@
 #/bin/bash
 result=$(hdfs dfsadmin -fs hdfs://mycluster/ -safemode leave | grep "Safe mode is OFF")
-if [[ -z $ result ]]; then
+if [[ -z $result ]]; then
 	echo "Unable to quit safe mode, please contact support"
 else
 	hdfs fsck hdfs://mycluster/ | grep 'Under replicated' | awk -F':' '{print $1}' >> /tmp/under_replicated_files
