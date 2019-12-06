@@ -537,15 +537,6 @@ set_tables_to_replicate ()
 }
 
 #------------------------------------------------------------------
-# SET ARRAY OF NAMESPACES TO CREATE
-#------------------------------------------------------------------
-
-set_namespaces_to_create() 
-{
-	# IF USER PROVIDES A LIST OF TABLES TO REPLICATE, THEN CREATE NAMESPACES CORRESPONDING TO THOSE
-	# OTHERWISE, CREATE ALL NAMESPACES
-}
-#------------------------------------------------------------------
 #  MAIN
 #------------------------------------------------------------------
 
@@ -557,8 +548,6 @@ validate_ambari_credentials
 
 set_replication_peer
 
-NAMESPACE_ARRAY=()
-set_namespaces_to_create
 
 TABLES_ARRAY=()
 set_tables_to_replicate 
