@@ -14,7 +14,7 @@ then
 	fi
 fi
 
-wget https://raw.githubusercontent.com/Azure/hbase-utils/master/replication/hdi_copy_table.sh -O /tmp/hdi_copy_table.sh
+wget https://raw.githubusercontent.com/Azure/hbase-utils/gkanade-fixrepforcustomnamespace/replication/hdi_copy_table.sh -O /tmp/hdi_copy_table.sh
 
 chmod +x /tmp/hdi_copy_table.sh
 
