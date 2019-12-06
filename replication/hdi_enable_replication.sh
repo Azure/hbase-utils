@@ -548,6 +548,7 @@ validate_ambari_credentials
 
 set_replication_peer
 
+
 TABLES_ARRAY=()
 set_tables_to_replicate 
 
