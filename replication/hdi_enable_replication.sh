@@ -548,6 +548,7 @@ validate_ambari_credentials
 
 set_replication_peer
 
+
 TABLES_ARRAY=()
 set_tables_to_replicate 
 
@@ -628,9 +629,9 @@ then
 		
 		if [[ -z $TABLE_COPY_STRING ]]
 		then
-			TABLE_COPY_STRING="$CURRENT_TABLE:0:$END_TS"
+			TABLE_COPY_STRING="$CURRENT_TABLE#0#$END_TS"
 		else
-			TABLE_COPY_STRING="$TABLE_COPY_STRING;$CURRENT_TABLE:0:$END_TS"
+			TABLE_COPY_STRING="$TABLE_COPY_STRING;$CURRENT_TABLE#0#$END_TS"
 		fi 
 
 	done

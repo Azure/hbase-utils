@@ -216,12 +216,12 @@ copy_tables()
 
 	for TABLE_ENTRY in "${TABLES_ARRAY[@]}" 
 	do
-		TABLE_NAME=`echo $TABLE_ENTRY | cut -f 1 -d ':'`
+		TABLE_NAME=`echo $TABLE_ENTRY | cut -f 1 -d '#'`
 		
 		if [[ $EVERYTHING_TILL_NOW == false ]]
 		then
-			START_TIME=`echo $TABLE_ENTRY | cut -f 2 -d ':'`
-			END_TIME=`echo $TABLE_ENTRY | cut -f 3 -d ':'`
+			START_TIME=`echo $TABLE_ENTRY | cut -f 2 -d '#'`
+			END_TIME=`echo $TABLE_ENTRY | cut -f 3 -d '#'`
 			
 			REGEX='^[0-9]+$'
 			if ! [[ $START_TIME =~ $REGEX ]];
