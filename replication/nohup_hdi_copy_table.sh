@@ -3,7 +3,7 @@
 DEFAULT_LOG_FILE=/var/log/hbase/copyTable.out
 
 DIR_NAME=`dirname $DEFAULT_LOG_FILE`
-
+echo "Here"
 if [[ ! -d "$DIR_NAME" ]];
 then
 	mkdir $DIR_NAME
