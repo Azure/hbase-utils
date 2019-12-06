@@ -640,9 +640,9 @@ then
 
 	# DOWNLOAD hdi_copy_table.sh script
 	#
-	echo "[INFO] Downloading https://raw.githubusercontent.com/Azure/hbase-utils/gkanade-fixrepforcustomnamespace/replication/nohup_hdi_copy_table.sh script to /tmp directory"
+	echo "[INFO] Downloading https://raw.githubusercontent.com/Azure/hbase-utils/master/replication/nohup_hdi_copy_table.sh script to /tmp directory"
 	
-	wget https://raw.githubusercontent.com/Azure/hbase-utils/gkanade-fixrepforcustomnamespace/replication/nohup_hdi_copy_table.sh -O /tmp/nohup_hdi_copy_table.sh
+	wget https://raw.githubusercontent.com/Azure/hbase-utils/master/replication/nohup_hdi_copy_table.sh -O /tmp/nohup_hdi_copy_table.sh
 
 	chmod +x /tmp/nohup_hdi_copy_table.sh
 
