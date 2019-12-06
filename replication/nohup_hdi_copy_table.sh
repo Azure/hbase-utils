@@ -13,7 +13,7 @@ then
 		echo "[ERROR] Failed to create directory '$DIR_NAME'."
 	fi
 fi
-
+echo "Here"
 wget https://raw.githubusercontent.com/Azure/hbase-utils/gkanade-fixrepforcustomnamespace/replication/hdi_copy_table.sh -O /tmp/hdi_copy_table.sh
 echo "Here"
 chmod +x /tmp/hdi_copy_table.sh
