@@ -15,7 +15,7 @@ then
 fi
 
 wget https://raw.githubusercontent.com/Azure/hbase-utils/gkanade-fixrepforcustomnamespace/replication/hdi_copy_table.sh -O /tmp/hdi_copy_table.sh
-
+echo "Here"
 chmod +x /tmp/hdi_copy_table.sh
 
 echo "[INFO] Starting copy table operation that will take a while. The progress will be saved in $DEFAULT_LOG_FILE."
