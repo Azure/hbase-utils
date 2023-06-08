@@ -48,6 +48,9 @@ Optinal arguments:
                                 Admin username for Ambari of destination HBase cluster.
                                 Default = admin.
 
+-ku, --krb-user                 
+                                For ESP clusters. Common Kerberos user, who can authenticate both source and
+                                destination clsuters
 -t, --table-list                
                                 ';' separated list of tables to be replicated. 
                                 
@@ -263,6 +266,22 @@ process_arguments()
 				printf '[ERROR] -dp or --dst-ambari-password requires non-empty ambari admin user password.' >&2
 				print_usage
 				exit 1
+				;;
+            
+            -ku|--krb-user)  
+				if [ -n "$2" ] 
+				then
+					KERBEROS_USER=$2
+					shift
+				else
+					printf '[ERROR] -ku or --krb-user requires non-empty kerberos user.' >&2
+					print_usage
+					exit 1
+				fi
+				;;
+
+			--dst-ambari-user=?*)
+				KERBEROS_USER=${1#*=} 
 				;;
 
 			-x|--suffix)
@@ -536,6 +555,25 @@ set_tables_to_replicate ()
 	# IS BETTER FOR REPLICATION.
 }
 
+#----------------------------------------------------------------
+# INIT FOR ESP CLUSTERS
+#----------------------------------------------------------------
+
+esp_cluster_init() {
+	if [[ ! -z "$KERBEROS_USER"  ]]
+	then
+		THIS_HOST=$(hostname)
+		PRINCIPAL=$(klist -kt /etc/security/keytabs/$KERBEROS_USER.keytab | grep $KERBEROS_USER | tail -1 | awk '{print $4}')
+		echo "kinit with principal: $PRINCIPAL"
+		kinit -kt /etc/security/keytabs/$KERBEROS_USER.keytab $PRINCIPAL
+		if [ $? -ne 0 ]; then
+			echo "Error executing kinit. Exiting."
+			exit 1
+		fi
+	fi
+}
+
+
 #------------------------------------------------------------------
 #  MAIN
 #------------------------------------------------------------------
@@ -545,6 +583,8 @@ process_arguments $@
 validate_arguments
 
 validate_ambari_credentials
+
+esp_cluster_init
 
 set_replication_peer
 
