@@ -98,7 +98,7 @@ do
 	then
 		START=true
 		continue
-	elif [[ $LINE == *row*in*seconds ]]
+	elif [[ $LINE == *row*in*seconds || $LINE == *row\(s\)*  ]]
 	then
 		break
 	elif [[ $START == true ]]
