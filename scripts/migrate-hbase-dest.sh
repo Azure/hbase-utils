@@ -803,7 +803,6 @@ do_WAL_copy() {
 				else
 					echo "Both destination and source clusters are HBase 2*; HDI 4.0 and both are non-AW. No copy required."
 				fi
-			#TODO: hankidle 4.0 to 5.1 migration
 			# else
 			# 	echo "Destination cluster is HBase 1*; HDI 3.6"
 			# 	if [[ $SRC_CLUSTER_HDI_VER == 4.0 ]]; then
