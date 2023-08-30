@@ -204,6 +204,35 @@ get_ambari_user_n_pass()
 }
 
 #----------------------------------------------------------------
+# GET OLD DEFAULT FS.
+get_old_default_fs(){
+	echo "Get old defaultfs"
+	echo "Getting HBase WAL dir."
+	curl -u $AMBARI_USER:$AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER?fields=Clusters/desired_configs/core-site" -o $TMP_FILE_DIR/core.json 2> $TMP_FILE_DIR/core.err
+	if [ $? -ne 0 ]; then
+		echo "Error: Failed executing curl to get latest version tag. Exiting."
+		exit 1
+	fi
+
+	if ! grep -q tag $TMP_FILE_DIR/core.json ; then # This will fail if accepted is not found because we are running with -e
+		echo "Error: 'tag' not found in output of core-site desired configs. Exiting."
+		exit 1
+	fi
+
+	VERSIONTAG=$(grep tag $TMP_FILE_DIR/core.json  | awk '{ print $3 }' | sed -e 's/"//g' | sed -e 's/,.*//g')
+	curl -u $AMBARI_USER:$AMBARI_PASSWORD -X GET -H "X-Requested-By: ambari" "https://$CLUSTER.azurehdinsight.net/api/v1/clusters/$CLUSTER/configurations?type=core-site&tag=$VERSIONTAG" -o $TMP_FILE_DIR/core.json 2> $TMP_FILE_DIR/core.err
+	if [ $? -ne 0 ]; then
+		echo "Error: Failed executing curl to get latest core-site. Exiting."
+		exit 1
+	fi
+
+	OLD_DEFAULTFS=$(grep 'fs.defaultFS' $TMP_FILE_DIR/core.json |grep -v 'true' | awk '{ print $3 }' | sed -e 's/"//g' | sed -e 's/,.*//g')
+
+	echo "Old defaultfs: $OLD_DEFAULTFS"
+}
+
+
+#----------------------------------------------------------------
 # CHANGE DEFAULT FS.
 changeDefaultFS()
 {
@@ -645,7 +674,7 @@ hdfs_cp()
 	# Tracing execution of cp command because it is a long running command.
 	echo "Executing cp from $1 to $2"
 	# sudo -u hbase hdfs dfs -cp "$DEFAULTFS/hbase-wal-backup/hbasewal/*" "$DEFAULTFS/hbase-wals"
-	hdfs dfs -cp -f $1 $2
+	sudo -u hbase hdfs dfs -cp -f $1 $2
 	if [ $? -ne 0 ]; then
 		echo "Error: Copy command failed. Exiting."
 		exit 1
@@ -660,7 +689,7 @@ hdfs_cp_D()
 	echo "Executing cp from $1 to $2"
 	# sudo -u hbase hdfs dfs -cp "$DEFAULTFS/hbase-wal-backup/hbasewal/*" "$DEFAULTFS/hbase-wals"
 	#hdfs dfs -Dfs.azure.page.blob.dir="/hbase/WALs,/hbase/MasterProcWALs,/hbase/oldWALs" -cp $1 $2
-	hdfs dfs -Dfs.azure.page.blob.dir="/hbase/WALs,/hbase/MasterProcWALs" -cp -f $1 $2
+	sudo -u hbase hdfs dfs -Dfs.azure.page.blob.dir="/hbase/WALs,/hbase/MasterProcWALs" -cp -f $1 $2
 	if [ $? -ne 0 ]; then
 		echo "Error: Copy command failed. Exiting."
 		exit 1
@@ -734,7 +763,13 @@ do_WAL_copy() {
 		echo "The destination cluster is not an AW cluster."
 		if [[ $SRC_CLUSTER_AW == true ]]; then
 			echo "The source cluster is an AW cluster."
-			if [[ $HBASEVERSION == 2* ]]; then
+			if [[ $HBASEVERSION == 2.4* ]]; then
+				echo "Destination cluster is HBase 2.4*; HDI 5.1"
+				delete_dir 	"$DEFAULTFS/hbase-wals/MasterProcWALs"	"ignore_failure"
+				delete_dir 	"$DEFAULTFS/hbase-wals/WALs"			"ignore_failure"
+				create_dir 	"$DEFAULTFS/hbase-wals"					"ignore_failure"
+				hdfs_cp 	"$DEFAULTFS/hbase-wal-backup/*" "$DEFAULTFS/hbase-wals"
+			elif [[ $HBASEVERSION == 2* ]]; then
 				echo "Destination cluster is HBase 2*; HDI 4.0"
 				delete_dir 	"$DEFAULTFS/hbase-wals/MasterProcWALs"	"ignore_failure"
 				delete_dir 	"$DEFAULTFS/hbase-wals/WALs"			"ignore_failure"
@@ -750,7 +785,14 @@ do_WAL_copy() {
 		else
 			echo "The source cluster is not an AW cluster. Both src and dest are non AW."
 			if [[ $HBASEVERSION == 2* ]]; then
-				echo "Destination cluster is HBase 2*; HDI 4.0"
+				if [[ $HBASEVERSION == 2.4* ]]; then
+					echo "Destination cluster is HBase 2.4*; HDI 5.1"
+					#TODO: copy WAL dir from old bucket WAL to new Bucket WAL dir
+					hdfs_cp "$OLD_DEFAULTFS/$HBASEWALDIR/*"	"$DEFAULTFS/hbase-wals/" 
+				elif [[ $HBASEVERSION == 2* ]]; then
+					echo "Destination cluster is HBase 2*; HDI 4.0"
+				fi
+				
 				if [[ $SRC_CLUSTER_HDI_VER == 3.6 ]]; then
 					echo "The source cluster is HBase 1*; HDI 3.6. Dest is HBase 2*; HDI 4.0"
 					delete_dir 	"$DEFAULTFS/hbase-wals/MasterProcWALs"	"ignore_failure"
@@ -761,17 +803,17 @@ do_WAL_copy() {
 				else
 					echo "Both destination and source clusters are HBase 2*; HDI 4.0 and both are non-AW. No copy required."
 				fi
-			else
-				echo "Destination cluster is HBase 1*; HDI 3.6"
-				if [[ $SRC_CLUSTER_HDI_VER == 4.0 ]]; then
-					echo "The source cluster is HBase 2*; HDI 4.0. The Dest cluster is HBase 1*; HDI 3.6."
-					delete_dir 	"$DEFAULTFS/hbase/MasterProcWALs"	"ignore_failure"
-					delete_dir 	"$DEFAULTFS/hbase/WALs"				"ignore_failure"
-					hdfs_cp	"$DEFAULTFS/hbase-wals/MasterProcWALs" 	"$DEFAULTFS/hbase/"
-					hdfs_cp	"$DEFAULTFS/hbase-wals/WALs" 			"$DEFAULTFS/hbase/"
-				else
-					echo "Both destination and source clusters are HBase 1*; HDI 3.6 and both are non-AW. No copy required."
-				fi
+			# else
+			# 	echo "Destination cluster is HBase 1*; HDI 3.6"
+			# 	if [[ $SRC_CLUSTER_HDI_VER == 4.0 ]]; then
+			# 		echo "The source cluster is HBase 2*; HDI 4.0. The Dest cluster is HBase 1*; HDI 3.6."
+			# 		delete_dir 	"$DEFAULTFS/hbase/MasterProcWALs"	"ignore_failure"
+			# 		delete_dir 	"$DEFAULTFS/hbase/WALs"				"ignore_failure"
+			# 		hdfs_cp	"$DEFAULTFS/hbase-wals/MasterProcWALs" 	"$DEFAULTFS/hbase/"
+			# 		hdfs_cp	"$DEFAULTFS/hbase-wals/WALs" 			"$DEFAULTFS/hbase/"
+			# 	else
+			# 		echo "Both destination and source clusters are HBase 1*; HDI 3.6 and both are non-AW. No copy required."
+			# 	fi
 			fi
 		fi
 	fi
@@ -843,6 +885,7 @@ getPrimaryHNCheckZKHostAndSetClusterName
 esp_cluster_init
 init_old_cluster_migrate_info
 stop_hbase
+get_old_default_fs
 changeDefaultFS
 remove_hbase_znode
 get_hbase_wal_dir_and_version
